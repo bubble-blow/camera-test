@@ -51,8 +51,11 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.Charset;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
 
@@ -74,6 +77,8 @@ public class MainActivity extends Activity {
     private CameraCaptureSession captureSession;
     private final List<ImageReader> imageReaders = new ArrayList<ImageReader>();
     private long lastFrameTimestampMs = -1L;
+    private final Deque<Long> recentFrameIntervalsMs = new ArrayDeque<Long>();
+    private static final int FRAME_WINDOW_SIZE = 10;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -347,10 +352,11 @@ public class MainActivity extends Activity {
         }
         imageReaders.clear();
         lastFrameTimestampMs = -1L;
+        recentFrameIntervalsMs.clear();
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                frameIntervalText.setText("Frame interval: N/A");
+                frameIntervalText.setText("Frame interval: N/A, Avg FPS(10): N/A");
             }
         });
     }
@@ -360,9 +366,24 @@ public class MainActivity extends Activity {
         final String text;
         if (lastFrameTimestampMs > 0) {
             long diff = now - lastFrameTimestampMs;
-            text = "Frame interval: " + diff + " ms";
+            recentFrameIntervalsMs.addLast(diff);
+            while (recentFrameIntervalsMs.size() > FRAME_WINDOW_SIZE) {
+                recentFrameIntervalsMs.removeFirst();
+            }
+
+            double sum = 0;
+            for (Long intervalMs : recentFrameIntervalsMs) {
+                sum += intervalMs;
+            }
+            double avgIntervalMs = sum / recentFrameIntervalsMs.size();
+            double avgFps = avgIntervalMs > 0 ? (1000.0 / avgIntervalMs) : 0;
+
+            text = String.format(Locale.US,
+                    "Frame interval: %d ms, Avg FPS(10): %.2f",
+                    diff,
+                    avgFps);
         } else {
-            text = "Frame interval: collecting...";
+            text = "Frame interval: collecting..., Avg FPS(10): collecting...";
         }
         lastFrameTimestampMs = now;
 
