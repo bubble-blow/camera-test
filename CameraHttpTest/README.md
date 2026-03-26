@@ -33,6 +33,8 @@
 {}
 ```
 
+- `format` 支持数字值或名称：`JPEG`、`YUV_420_888`、`NV21`、`NV16`、`YUY2`、`YV12`、`RGB_565`、`RAW_SENSOR`、`RAW10`、`RAW12`、`DEPTH16`、`UNKNOWN`。
+
 ## 说明
 
 - 服务器实现使用 `ServerSocket + org.apache.http.protocol.HttpService`，避免 `ServerBootstrap` 依赖。

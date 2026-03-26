@@ -422,13 +422,50 @@ public class MainActivity extends Activity {
         if (formatValue instanceof Number) {
             return ((Number) formatValue).intValue();
         }
+
         String formatName = String.valueOf(formatValue);
-        if ("YUV_420_888".equalsIgnoreCase(formatName)) {
-            return ImageFormat.YUV_420_888;
+        String normalized = formatName.trim().toUpperCase(Locale.US)
+                .replace("IMAGEFORMAT.", "")
+                .replace('-', '_')
+                .replace(' ', '_');
+
+        if ("UNKNOWN".equals(normalized)) {
+            return ImageFormat.UNKNOWN;
         }
-        if ("JPEG".equalsIgnoreCase(formatName)) {
+        if ("RGB_565".equals(normalized)) {
+            return ImageFormat.RGB_565;
+        }
+        if ("NV16".equals(normalized)) {
+            return ImageFormat.NV16;
+        }
+        if ("NV21".equals(normalized)) {
+            return ImageFormat.NV21;
+        }
+        if ("YUY2".equals(normalized)) {
+            return ImageFormat.YUY2;
+        }
+        if ("YV12".equals(normalized)) {
+            return ImageFormat.YV12;
+        }
+        if ("JPEG".equals(normalized)) {
             return ImageFormat.JPEG;
         }
+        if ("YUV_420_888".equals(normalized)) {
+            return ImageFormat.YUV_420_888;
+        }
+        if ("RAW_SENSOR".equals(normalized)) {
+            return ImageFormat.RAW_SENSOR;
+        }
+        if ("RAW10".equals(normalized)) {
+            return ImageFormat.RAW10;
+        }
+        if ("RAW12".equals(normalized)) {
+            return ImageFormat.RAW12;
+        }
+        if ("DEPTH16".equals(normalized)) {
+            return ImageFormat.DEPTH16;
+        }
+
         throw new JSONException("Unsupported format: " + formatName);
     }
 
