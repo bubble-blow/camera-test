@@ -25,7 +25,6 @@ import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpResponseFactory;
-import org.apache.http.HttpServerConnection;
 import org.apache.http.HttpStatus;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.DefaultConnectionReuseStrategy;
@@ -218,7 +217,7 @@ public class MainActivity extends Activity {
     }
 
     private void handleClientSocket(HttpService httpService, Socket socket) {
-        HttpServerConnection connection = new DefaultHttpServerConnection();
+        DefaultHttpServerConnection connection = new DefaultHttpServerConnection();
         HttpContext context = new BasicHttpContext(null);
         try {
             connection.bind(socket, new BasicHttpParams());
@@ -433,42 +432,21 @@ public class MainActivity extends Activity {
                 .replace('-', '_')
                 .replace(' ', '_');
 
-        if ("UNKNOWN".equals(normalized)) {
-            return ImageFormat.UNKNOWN;
-        }
-        if ("RGB_565".equals(normalized)) {
-            return ImageFormat.RGB_565;
-        }
-        if ("NV16".equals(normalized)) {
-            return ImageFormat.NV16;
-        }
-        if ("NV21".equals(normalized)) {
-            return ImageFormat.NV21;
-        }
-        if ("YUY2".equals(normalized)) {
-            return ImageFormat.YUY2;
-        }
-        if ("YV12".equals(normalized)) {
-            return ImageFormat.YV12;
-        }
-        if ("JPEG".equals(normalized)) {
-            return ImageFormat.JPEG;
-        }
-        if ("YUV_420_888".equals(normalized)) {
-            return ImageFormat.YUV_420_888;
-        }
-        if ("RAW_SENSOR".equals(normalized)) {
-            return ImageFormat.RAW_SENSOR;
-        }
-        if ("RAW10".equals(normalized)) {
-            return ImageFormat.RAW10;
-        }
-        if ("RAW12".equals(normalized)) {
-            return ImageFormat.RAW12;
-        }
-        if ("DEPTH16".equals(normalized)) {
-            return ImageFormat.DEPTH16;
-        }
+        if ("YV12".equals(normalized)) return ImageFormat.YV12;
+        if ("YUV_420_888".equals(normalized)) return ImageFormat.YUV_420_888;
+        if ("NV21".equals(normalized)) return ImageFormat.NV21;
+        if ("NV16".equals(normalized)) return ImageFormat.NV16;
+        if ("JPEG".equals(normalized)) return ImageFormat.JPEG;
+        if ("YUY2".equals(normalized)) return ImageFormat.YUY2;
+        if ("Y8".equals(normalized)) return ImageFormat.Y8;
+        if ("RAW_SENSOR".equals(normalized)) return ImageFormat.RAW_SENSOR;
+        if ("RAW_PRIVATE".equals(normalized)) return ImageFormat.RAW_PRIVATE;
+        if ("RAW10".equals(normalized)) return ImageFormat.RAW10;
+        if ("DEPTH16".equals(normalized)) return ImageFormat.DEPTH16;
+        if ("DEPTH_POINT_CLOUD".equals(normalized)) return ImageFormat.DEPTH_POINT_CLOUD;
+        if ("DEPTH_JPEG".equals(normalized)) return ImageFormat.DEPTH_JPEG;
+        if ("PRIVATE".equals(normalized)) return ImageFormat.PRIVATE;
+        if ("HEIC".equals(normalized)) return ImageFormat.HEIC;
 
         throw new JSONException("Unsupported format: " + formatName);
     }
@@ -528,20 +506,41 @@ public class MainActivity extends Activity {
         return result;
     }
 
-    private static String imageFormatToName(int format) {
-        if (format == ImageFormat.UNKNOWN) return "UNKNOWN";
-        if (format == ImageFormat.RGB_565) return "RGB_565";
-        if (format == ImageFormat.NV16) return "NV16";
-        if (format == ImageFormat.NV21) return "NV21";
-        if (format == ImageFormat.YUY2) return "YUY2";
-        if (format == ImageFormat.YV12) return "YV12";
-        if (format == ImageFormat.JPEG) return "JPEG";
-        if (format == ImageFormat.YUV_420_888) return "YUV_420_888";
-        if (format == ImageFormat.RAW_SENSOR) return "RAW_SENSOR";
-        if (format == ImageFormat.RAW10) return "RAW10";
-        if (format == ImageFormat.RAW12) return "RAW12";
-        if (format == ImageFormat.DEPTH16) return "DEPTH16";
-        return "UNKNOWN_" + format;
+    public static String imageFormatToName(int format) {
+        switch (format) {
+            case ImageFormat.YV12:
+                return "YV12";
+            case ImageFormat.YUV_420_888:
+                return "YUV_420_888";
+            case ImageFormat.NV21:
+                return "NV21";
+            case ImageFormat.NV16:
+                return "NV16";
+            case ImageFormat.JPEG:
+                return "JPEG";
+            case ImageFormat.YUY2:
+                return "YUY2";
+            case ImageFormat.Y8:
+                return "Y8";
+            case ImageFormat.RAW_SENSOR:
+                return "RAW_SENSOR";
+            case ImageFormat.RAW_PRIVATE:
+                return "RAW_PRIVATE";
+            case ImageFormat.RAW10:
+                return "RAW10";
+            case ImageFormat.DEPTH16:
+                return "DEPTH16";
+            case ImageFormat.DEPTH_POINT_CLOUD:
+                return "DEPTH_POINT_CLOUD";
+            case ImageFormat.DEPTH_JPEG:
+                return "DEPTH_JPEG";
+            case ImageFormat.PRIVATE:
+                return "PRIVATE";
+            case ImageFormat.HEIC:
+                return "HEIC";
+            default:
+                return "UNKNOWN_" + format;
+        }
     }
 
     private class IndexHandler implements HttpRequestHandler {

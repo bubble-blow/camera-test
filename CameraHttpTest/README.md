@@ -1,6 +1,6 @@
 # CameraHttpTest (Eclipse Android Project)
 
-该项目是 Eclipse + ADT 结构的 Android 工程，`targetSdkVersion=21`。
+该项目是 Eclipse + ADT 结构的 Android 工程，`targetSdkVersion=29`。
 
 ## 功能
 
@@ -34,9 +34,9 @@
 {}
 ```
 
-- `format` 支持数字值或名称：`JPEG`、`YUV_420_888`、`NV21`、`NV16`、`YUY2`、`YV12`、`RGB_565`、`RAW_SENSOR`、`RAW10`、`RAW12`、`DEPTH16`、`UNKNOWN`。
+- `format` 支持数字值或名称：`YV12`、`YUV_420_888`、`NV21`、`NV16`、`JPEG`、`YUY2`、`Y8`、`RAW_SENSOR`、`RAW_PRIVATE`、`RAW10`、`DEPTH16`、`DEPTH_POINT_CLOUD`、`DEPTH_JPEG`、`PRIVATE`、`HEIC`。
 
 ## 说明
 
 - 服务器实现使用 `ServerSocket + org.apache.http.protocol.HttpService`，避免 `ServerBootstrap` 依赖。
-- `targetSdkVersion=21` 场景下可直接使用内置 `org.apache.http` 相关 API。
+- 项目配置为 `target=android-29`，并在 `project.properties` 中指定 `sdk.buildtools=25.0.1`。

@@ -61,8 +61,21 @@
         <label>高:</label><input type="number" class="height" value="${defaults.height}" />
         <label>格式:</label>
         <select class="format">
+          <option value="YV12" ${defaults.format === 'YV12' ? 'selected' : ''}>YV12</option>
           <option value="YUV_420_888" ${defaults.format === 'YUV_420_888' ? 'selected' : ''}>YUV_420_888</option>
+          <option value="NV21" ${defaults.format === 'NV21' ? 'selected' : ''}>NV21</option>
+          <option value="NV16" ${defaults.format === 'NV16' ? 'selected' : ''}>NV16</option>
           <option value="JPEG" ${defaults.format === 'JPEG' ? 'selected' : ''}>JPEG</option>
+          <option value="YUY2" ${defaults.format === 'YUY2' ? 'selected' : ''}>YUY2</option>
+          <option value="Y8" ${defaults.format === 'Y8' ? 'selected' : ''}>Y8</option>
+          <option value="RAW_SENSOR" ${defaults.format === 'RAW_SENSOR' ? 'selected' : ''}>RAW_SENSOR</option>
+          <option value="RAW_PRIVATE" ${defaults.format === 'RAW_PRIVATE' ? 'selected' : ''}>RAW_PRIVATE</option>
+          <option value="RAW10" ${defaults.format === 'RAW10' ? 'selected' : ''}>RAW10</option>
+          <option value="DEPTH16" ${defaults.format === 'DEPTH16' ? 'selected' : ''}>DEPTH16</option>
+          <option value="DEPTH_POINT_CLOUD" ${defaults.format === 'DEPTH_POINT_CLOUD' ? 'selected' : ''}>DEPTH_POINT_CLOUD</option>
+          <option value="DEPTH_JPEG" ${defaults.format === 'DEPTH_JPEG' ? 'selected' : ''}>DEPTH_JPEG</option>
+          <option value="PRIVATE" ${defaults.format === 'PRIVATE' ? 'selected' : ''}>PRIVATE</option>
+          <option value="HEIC" ${defaults.format === 'HEIC' ? 'selected' : ''}>HEIC</option>
         </select>
       `;
       readersDiv.appendChild(block);
