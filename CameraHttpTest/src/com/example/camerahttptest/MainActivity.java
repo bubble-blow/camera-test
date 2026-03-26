@@ -14,19 +14,32 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
+import android.view.Surface;
 import android.widget.TextView;
 
+import org.apache.http.ConnectionReuseStrategy;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
+import org.apache.http.HttpResponseFactory;
+import org.apache.http.HttpServerConnection;
 import org.apache.http.HttpStatus;
-import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.bootstrap.HttpServer;
-import org.apache.http.impl.bootstrap.ServerBootstrap;
+import org.apache.http.impl.DefaultConnectionReuseStrategy;
+import org.apache.http.impl.DefaultHttpResponseFactory;
+import org.apache.http.impl.DefaultHttpServerConnection;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.protocol.BasicHttpProcessor;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.HttpRequestHandler;
+import org.apache.http.protocol.HttpRequestHandlerRegistry;
+import org.apache.http.protocol.HttpService;
+import org.apache.http.protocol.ResponseConnControl;
+import org.apache.http.protocol.ResponseContent;
+import org.apache.http.protocol.ResponseDate;
+import org.apache.http.protocol.ResponseServer;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,6 +48,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +62,9 @@ public class MainActivity extends Activity {
     private TextView serverStatusText;
     private TextView frameIntervalText;
 
-    private HttpServer httpServer;
+    private volatile boolean serverRunning;
+    private ServerSocket serverSocket;
+    private Thread serverThread;
 
     private HandlerThread cameraThread;
     private Handler cameraHandler;
@@ -99,31 +116,112 @@ public class MainActivity extends Activity {
     }
 
     private synchronized void startWebServer() {
-        if (httpServer != null) {
+        if (serverRunning) {
             return;
         }
 
-        httpServer = ServerBootstrap.bootstrap()
-                .setListenerPort(SERVER_PORT)
-                .registerHandler("/", new IndexHandler())
-                .registerHandler("/open", new OpenCameraHandler())
-                .registerHandler("/close", new CloseCameraHandler())
-                .create();
-
-        try {
-            httpServer.start();
-            updateServerStatus("Server: running on port " + SERVER_PORT);
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to start HTTP server", e);
-            updateServerStatus("Server: failed to start - " + e.getMessage());
-        }
+        serverRunning = true;
+        serverThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                runHttpServerLoop();
+            }
+        }, "http-server");
+        serverThread.start();
+        updateServerStatus("Server: starting on port " + SERVER_PORT);
     }
 
     private synchronized void stopWebServer() {
-        if (httpServer != null) {
-            httpServer.stop();
-            httpServer = null;
-            updateServerStatus("Server: stopped");
+        serverRunning = false;
+
+        if (serverSocket != null) {
+            try {
+                serverSocket.close();
+            } catch (IOException e) {
+                Log.w(TAG, "close server socket failed", e);
+            }
+            serverSocket = null;
+        }
+
+        if (serverThread != null) {
+            serverThread.interrupt();
+            try {
+                serverThread.join(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            serverThread = null;
+        }
+
+        updateServerStatus("Server: stopped");
+    }
+
+    private void runHttpServerLoop() {
+        try {
+            serverSocket = new ServerSocket(SERVER_PORT);
+            updateServerStatus("Server: running on port " + SERVER_PORT);
+
+            final HttpService httpService = createHttpService();
+
+            while (serverRunning) {
+                Socket socket = null;
+                try {
+                    socket = serverSocket.accept();
+                    handleClientSocket(httpService, socket);
+                } catch (IOException e) {
+                    if (serverRunning) {
+                        Log.e(TAG, "accept failed", e);
+                    }
+                } finally {
+                    if (socket != null) {
+                        try {
+                            socket.close();
+                        } catch (IOException ignore) {
+                            // ignore
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "start server failed", e);
+            updateServerStatus("Server: failed - " + e.getMessage());
+        }
+    }
+
+    private HttpService createHttpService() {
+        BasicHttpProcessor httpProcessor = new BasicHttpProcessor();
+        httpProcessor.addInterceptor(new ResponseDate());
+        httpProcessor.addInterceptor(new ResponseServer());
+        httpProcessor.addInterceptor(new ResponseContent());
+        httpProcessor.addInterceptor(new ResponseConnControl());
+
+        HttpRequestHandlerRegistry registry = new HttpRequestHandlerRegistry();
+        registry.register("/", new IndexHandler());
+        registry.register("/open", new OpenCameraHandler());
+        registry.register("/close", new CloseCameraHandler());
+
+        ConnectionReuseStrategy reuseStrategy = new DefaultConnectionReuseStrategy();
+        HttpResponseFactory responseFactory = new DefaultHttpResponseFactory();
+
+        HttpService httpService = new HttpService(httpProcessor, reuseStrategy, responseFactory);
+        httpService.setHandlerResolver(registry);
+        return httpService;
+    }
+
+    private void handleClientSocket(HttpService httpService, Socket socket) {
+        HttpServerConnection connection = new DefaultHttpServerConnection();
+        HttpContext context = new BasicHttpContext(null);
+        try {
+            connection.bind(socket, new BasicHttpParams());
+            httpService.handleRequest(connection, context);
+        } catch (Exception e) {
+            Log.e(TAG, "handle request failed", e);
+        } finally {
+            try {
+                connection.shutdown();
+            } catch (IOException ignore) {
+                // ignore
+            }
         }
     }
 
@@ -141,15 +239,15 @@ public class MainActivity extends Activity {
         try {
             closeCamera();
 
-            final List<android.view.Surface> surfaces = new ArrayList<android.view.Surface>();
+            final List<Surface> surfaces = new ArrayList<Surface>();
             for (ReaderSpec spec : specs) {
                 ImageReader reader = ImageReader.newInstance(spec.width, spec.height, spec.format, 2);
                 reader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
                     @Override
-                    public void onImageAvailable(ImageReader reader) {
+                    public void onImageAvailable(ImageReader imageReader) {
                         Image image = null;
                         try {
-                            image = reader.acquireLatestImage();
+                            image = imageReader.acquireLatestImage();
                             if (image != null) {
                                 onFrameArrived();
                             }
@@ -212,11 +310,9 @@ public class MainActivity extends Activity {
 
             result.put("ok", true);
             result.put("message", "openCamera command submitted");
-        } catch (CameraAccessException e) {
+        } catch (Exception e) {
             safeCloseReaders();
-            putError(result, "Camera access error: " + e.getMessage());
-        } catch (JSONException e) {
-            putError(result, "JSON error: " + e.getMessage());
+            putError(result, "openCamera failed: " + e.getMessage());
         }
         return result;
     }
@@ -283,7 +379,7 @@ public class MainActivity extends Activity {
             obj.put("ok", false);
             obj.put("message", msg);
         } catch (JSONException ignore) {
-            // no-op
+            // ignore
         }
     }
 
@@ -327,7 +423,8 @@ public class MainActivity extends Activity {
                 html.append(line).append('\n');
             }
             response.setStatusCode(HttpStatus.SC_OK);
-            response.setEntity(new StringEntity(html.toString(), ContentType.create("text/html", "UTF-8")));
+            response.setHeader("Content-Type", "text/html; charset=UTF-8");
+            response.setEntity(new StringEntity(html.toString(), "UTF-8"));
         }
     }
 
@@ -362,7 +459,8 @@ public class MainActivity extends Activity {
             }
 
             response.setStatusCode(HttpStatus.SC_OK);
-            response.setEntity(new StringEntity(result.toString(), ContentType.APPLICATION_JSON));
+            response.setHeader("Content-Type", "application/json; charset=UTF-8");
+            response.setEntity(new StringEntity(result.toString(), "UTF-8"));
         }
     }
 
@@ -371,7 +469,8 @@ public class MainActivity extends Activity {
         public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
             JSONObject result = closeCameraCommand();
             response.setStatusCode(HttpStatus.SC_OK);
-            response.setEntity(new StringEntity(result.toString(), ContentType.APPLICATION_JSON));
+            response.setHeader("Content-Type", "application/json; charset=UTF-8");
+            response.setEntity(new StringEntity(result.toString(), "UTF-8"));
         }
     }
 
