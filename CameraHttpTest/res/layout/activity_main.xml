@@ -20,6 +20,14 @@
         android:textSize="20sp" />
 
     <TextView
+        android:id="@+id/errorText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Camera error: none"
+        android:textColor="#cc0000" />
+
+    <TextView
         android:id="@+id/hintText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

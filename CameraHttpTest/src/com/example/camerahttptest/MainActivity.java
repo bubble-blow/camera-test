@@ -66,6 +66,7 @@ public class MainActivity extends Activity {
 
     private TextView serverStatusText;
     private TextView frameIntervalText;
+    private TextView errorText;
 
     private volatile boolean serverRunning;
     private ServerSocket serverSocket;
@@ -89,6 +90,7 @@ public class MainActivity extends Activity {
 
         serverStatusText = (TextView) findViewById(R.id.serverStatus);
         frameIntervalText = (TextView) findViewById(R.id.frameIntervalText);
+        errorText = (TextView) findViewById(R.id.errorText);
         cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
 
         startCameraThread();
@@ -233,6 +235,26 @@ public class MainActivity extends Activity {
         }
     }
 
+
+    private void showCameraErrorMessage(final String message) {
+        Log.e(TAG, message);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                errorText.setText("Camera error: " + message);
+            }
+        });
+    }
+
+    private void clearCameraErrorMessage() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                errorText.setText("Camera error: none");
+            }
+        });
+    }
+
     private void updateServerStatus(final String text) {
         runOnUiThread(new Runnable() {
             @Override
@@ -245,6 +267,7 @@ public class MainActivity extends Activity {
     private synchronized JSONObject openCamera(String cameraId, List<ReaderSpec> specs) {
         JSONObject result = new JSONObject();
         try {
+            clearCameraErrorMessage();
             closeCamera();
 
             final List<Surface> surfaces = new ArrayList<Surface>();
@@ -288,30 +311,31 @@ public class MainActivity extends Activity {
                                             }
                                             session.setRepeatingRequest(builder.build(), null, cameraHandler);
                                         } catch (CameraAccessException e) {
-                                            Log.e(TAG, "setRepeatingRequest failed", e);
+                                            showCameraErrorMessage("setRepeatingRequest failed: " + e.getMessage());
                                         }
                                     }
                                 }
 
                                 @Override
                                 public void onConfigureFailed(CameraCaptureSession session) {
-                                    Log.e(TAG, "Capture session configure failed");
+                                    showCameraErrorMessage("Capture session configure failed");
                                 }
                             }, cameraHandler);
                         } catch (CameraAccessException e) {
-                            Log.e(TAG, "createCaptureSession failed", e);
+                            showCameraErrorMessage("createCaptureSession failed: " + e.getMessage());
                         }
                     }
                 }
 
                 @Override
                 public void onDisconnected(CameraDevice camera) {
+                    showCameraErrorMessage("Camera disconnected");
                     camera.close();
                 }
 
                 @Override
                 public void onError(CameraDevice camera, int error) {
-                    Log.e(TAG, "Camera error: " + error);
+                    showCameraErrorMessage("Camera device error code=" + error);
                     camera.close();
                 }
             }, cameraHandler);
@@ -320,7 +344,9 @@ public class MainActivity extends Activity {
             result.put("message", "openCamera command submitted");
         } catch (Exception e) {
             safeCloseReaders();
-            putError(result, "openCamera failed: " + e.getMessage());
+            String msg = "openCamera failed: " + e.getMessage();
+            showCameraErrorMessage(msg);
+            putError(result, msg);
         }
         return result;
     }
