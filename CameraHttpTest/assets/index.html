@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Camera HTTP 控制台</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; }
+    .row { margin-bottom: 12px; }
+    .reader { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
+    input, select, button { padding: 6px; margin-right: 8px; }
+    .log { background: #f6f6f6; padding: 10px; min-height: 80px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2>Camera HTTP 控制台</h2>
+  <div class="row">
+    <label>服务地址：</label>
+    <input id="host" value="http://127.0.0.1:8080" style="width: 240px;" />
+  </div>
+  <div class="row">
+    <label>摄像头 ID：</label>
+    <input id="cameraId" type="number" value="0" />
+  </div>
+
+  <div class="row">
+    <button onclick="addReader()">增加 ImageReader</button>
+    <button onclick="removeReader()">减少 ImageReader</button>
+  </div>
+
+  <div id="readers"></div>
+
+  <div class="row">
+    <button onclick="openCamera()">打开</button>
+    <button onclick="closeCamera()">关闭</button>
+  </div>
+
+  <h3>响应日志</h3>
+  <div class="log" id="log"></div>
+
+  <script>
+    const readersDiv = document.getElementById('readers');
+
+    function appendLog(text) {
+      const log = document.getElementById('log');
+      const now = new Date().toLocaleTimeString();
+      log.textContent = `[${now}] ${text}\n` + log.textContent;
+    }
+
+    function addReader(defaults = { width: 640, height: 480, format: 'YUV_420_888' }) {
+      const idx = readersDiv.children.length + 1;
+      const block = document.createElement('div');
+      block.className = 'reader';
+      block.innerHTML = `
+        <div><strong>Reader #${idx}</strong></div>
+        <label>宽:</label><input type="number" class="width" value="${defaults.width}" />
+        <label>高:</label><input type="number" class="height" value="${defaults.height}" />
+        <label>格式:</label>
+        <select class="format">
+          <option value="YUV_420_888" ${defaults.format === 'YUV_420_888' ? 'selected' : ''}>YUV_420_888</option>
+          <option value="JPEG" ${defaults.format === 'JPEG' ? 'selected' : ''}>JPEG</option>
+        </select>
+      `;
+      readersDiv.appendChild(block);
+    }
+
+    function removeReader() {
+      if (readersDiv.lastElementChild) {
+        readersDiv.removeChild(readersDiv.lastElementChild);
+      }
+    }
+
+    function collectReaders() {
+      const blocks = Array.from(readersDiv.getElementsByClassName('reader'));
+      return blocks.map(block => ({
+        width: Number(block.querySelector('.width').value),
+        height: Number(block.querySelector('.height').value),
+        format: block.querySelector('.format').value
+      }));
+    }
+
+    async function openCamera() {
+      const host = document.getElementById('host').value.trim();
+      const payload = {
+        cameraId: String(document.getElementById('cameraId').value),
+        readers: collectReaders()
+      };
+
+      try {
+        const res = await fetch(`${host}/open`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        appendLog('/open => ' + await res.text());
+      } catch (e) {
+        appendLog('/open 请求失败: ' + e.message);
+      }
+    }
+
+    async function closeCamera() {
+      const host = document.getElementById('host').value.trim();
+      try {
+        const res = await fetch(`${host}/close`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        appendLog('/close => ' + await res.text());
+      } catch (e) {
+        appendLog('/close 请求失败: ' + e.message);
+      }
+    }
+
+    addReader();
+  </script>
+</body>
+</html>

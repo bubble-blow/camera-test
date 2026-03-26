@@ -1,0 +1,44 @@
+# CameraHttpTest (Eclipse Android Project)
+
+该项目是 Eclipse + ADT 结构的 Android 工程，`targetSdkVersion=21`。
+
+## 功能
+
+- MainActivity 启动时创建基于 `org.apache.http` 的本地 HTTP 服务器（默认端口 `8080`）。
+- MainActivity 销毁时自动关闭 HTTP 服务器和摄像头资源。
+- 监听 JSON 请求：
+  - `POST /open`：打开指定 cameraId，按 `readers` 参数创建一个或多个 `ImageReader`。
+  - `POST /close`：关闭摄像头。
+- `ImageReader` 只用于测试：在 `onImageAvailable` 中仅 `acquireLatestImage()` 后立即 `close()`，不输出图像。
+- Activity 上实时显示帧间隔（毫秒）。
+- `assets/index.html` 提供前端页面，用于输入 cameraId、动态增减 `ImageReader` 参数并发送打开/关闭请求。
+
+## 请求示例
+
+### 打开摄像头
+
+```json
+{
+  "cameraId": "0",
+  "readers": [
+    {"width": 640, "height": 480, "format": "YUV_420_888"},
+    {"width": 1280, "height": 720, "format": "JPEG"}
+  ]
+}
+```
+
+### 关闭摄像头
+
+```json
+{}
+```
+
+## 依赖说明（重要）
+
+本工程代码使用了 `org.apache.http.impl.bootstrap.ServerBootstrap`（来自 Apache HttpComponents）。
+请将以下 jar 放入工程 `libs/` 目录并在 Eclipse Build Path 中启用：
+
+- `httpcore-4.4.x.jar`
+- `httpcore-nio-4.4.x.jar`
+
+> 如果你的环境已有兼容版本，也可使用等效版本。

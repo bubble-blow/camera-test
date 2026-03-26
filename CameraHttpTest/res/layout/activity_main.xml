@@ -1,0 +1,29 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp" >
+
+    <TextView
+        android:id="@+id/serverStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Server: starting"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/frameIntervalText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Frame interval: N/A"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/hintText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Use assets/index.html to send open/close commands." />
+
+</LinearLayout>
