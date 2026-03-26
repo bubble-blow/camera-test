@@ -5,6 +5,7 @@ import android.content.res.AssetManager;
 import android.graphics.ImageFormat;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
@@ -14,6 +15,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
+import android.util.Size;
 import android.view.Surface;
 import android.widget.TextView;
 
@@ -51,6 +53,7 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -204,6 +207,7 @@ public class MainActivity extends Activity {
         registry.register("/", new IndexHandler());
         registry.register("/open", new OpenCameraHandler());
         registry.register("/close", new CloseCameraHandler());
+        registry.register("/capabilities", new CapabilitiesHandler());
 
         ConnectionReuseStrategy reuseStrategy = new DefaultConnectionReuseStrategy();
         HttpResponseFactory responseFactory = new DefaultHttpResponseFactory();
@@ -469,6 +473,77 @@ public class MainActivity extends Activity {
         throw new JSONException("Unsupported format: " + formatName);
     }
 
+
+    private synchronized JSONObject getCameraCapabilities() {
+        JSONObject result = new JSONObject();
+        JSONArray cameraArray = new JSONArray();
+
+        try {
+            String[] cameraIds = cameraManager.getCameraIdList();
+            Arrays.sort(cameraIds);
+
+            for (String cameraId : cameraIds) {
+                JSONObject cameraObj = new JSONObject();
+                cameraObj.put("cameraId", cameraId);
+
+                CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraId);
+                android.hardware.camera2.params.StreamConfigurationMap map =
+                        characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+
+                JSONArray streams = new JSONArray();
+                if (map != null) {
+                    int[] formats = map.getOutputFormats();
+                    Arrays.sort(formats);
+                    for (int format : formats) {
+                        JSONObject formatObj = new JSONObject();
+                        formatObj.put("format", format);
+                        formatObj.put("formatName", imageFormatToName(format));
+
+                        JSONArray sizesArray = new JSONArray();
+                        Size[] sizes = map.getOutputSizes(format);
+                        if (sizes != null) {
+                            for (Size size : sizes) {
+                                JSONObject sizeObj = new JSONObject();
+                                sizeObj.put("width", size.getWidth());
+                                sizeObj.put("height", size.getHeight());
+                                sizesArray.put(sizeObj);
+                            }
+                        }
+
+                        formatObj.put("sizes", sizesArray);
+                        streams.put(formatObj);
+                    }
+                }
+
+                cameraObj.put("streams", streams);
+                cameraArray.put(cameraObj);
+            }
+
+            result.put("ok", true);
+            result.put("cameras", cameraArray);
+        } catch (Exception e) {
+            putError(result, "Failed to load capabilities: " + e.getMessage());
+        }
+
+        return result;
+    }
+
+    private static String imageFormatToName(int format) {
+        if (format == ImageFormat.UNKNOWN) return "UNKNOWN";
+        if (format == ImageFormat.RGB_565) return "RGB_565";
+        if (format == ImageFormat.NV16) return "NV16";
+        if (format == ImageFormat.NV21) return "NV21";
+        if (format == ImageFormat.YUY2) return "YUY2";
+        if (format == ImageFormat.YV12) return "YV12";
+        if (format == ImageFormat.JPEG) return "JPEG";
+        if (format == ImageFormat.YUV_420_888) return "YUV_420_888";
+        if (format == ImageFormat.RAW_SENSOR) return "RAW_SENSOR";
+        if (format == ImageFormat.RAW10) return "RAW10";
+        if (format == ImageFormat.RAW12) return "RAW12";
+        if (format == ImageFormat.DEPTH16) return "DEPTH16";
+        return "UNKNOWN_" + format;
+    }
+
     private class IndexHandler implements HttpRequestHandler {
         @Override
         public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
@@ -526,6 +601,17 @@ public class MainActivity extends Activity {
         @Override
         public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
             JSONObject result = closeCameraCommand();
+            response.setStatusCode(HttpStatus.SC_OK);
+            response.setHeader("Content-Type", "application/json; charset=UTF-8");
+            response.setEntity(new StringEntity(result.toString(), "UTF-8"));
+        }
+    }
+
+
+    private class CapabilitiesHandler implements HttpRequestHandler {
+        @Override
+        public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
+            JSONObject result = getCameraCapabilities();
             response.setStatusCode(HttpStatus.SC_OK);
             response.setHeader("Content-Type", "application/json; charset=UTF-8");
             response.setEntity(new StringEntity(result.toString(), "UTF-8"));

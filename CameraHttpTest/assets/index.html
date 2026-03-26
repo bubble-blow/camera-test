@@ -10,6 +10,7 @@
     .reader { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
     input, select, button { padding: 6px; margin-right: 8px; }
     .log { background: #f6f6f6; padding: 10px; min-height: 80px; white-space: pre-wrap; }
+    .caps { background: #f0f7ff; padding: 10px; min-height: 120px; white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -30,6 +31,13 @@
     <button onclick="openCamera()">打开</button>
     <button onclick="closeCamera()">关闭</button>
   </div>
+
+
+  <h3>相机能力列表</h3>
+  <div class="row">
+    <button onclick="loadCapabilities()">刷新能力</button>
+  </div>
+  <div class="caps" id="caps">加载中...</div>
 
   <h3>响应日志</h3>
   <div class="log" id="log"></div>
@@ -76,6 +84,33 @@
       }));
     }
 
+
+    async function loadCapabilities() {
+      const caps = document.getElementById('caps');
+      try {
+        const res = await fetch('/capabilities');
+        const data = await res.json();
+        if (!data.ok) {
+          caps.textContent = '获取失败: ' + (data.message || 'unknown');
+          return;
+        }
+
+        const lines = [];
+        (data.cameras || []).forEach(camera => {
+          lines.push(`Camera ${camera.cameraId}`);
+          (camera.streams || []).forEach(stream => {
+            const sizes = (stream.sizes || []).map(s => `${s.width}x${s.height}`).join(', ');
+            lines.push(`  - ${stream.formatName} (${stream.format}): ${sizes}`);
+          });
+          lines.push('');
+        });
+
+        caps.textContent = lines.length ? lines.join('\n') : '无数据';
+      } catch (e) {
+        caps.textContent = '请求失败: ' + e.message;
+      }
+    }
+
     async function openCamera() {
       const payload = {
         cameraId: String(document.getElementById('cameraId').value),
@@ -108,6 +143,7 @@
     }
 
     addReader();
+    loadCapabilities();
   </script>
 </body>
 </html>
