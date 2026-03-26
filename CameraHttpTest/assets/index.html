@@ -67,13 +67,6 @@
     }
 
 
-    function getBaseUrl() {
-      if (window.location.origin && window.location.origin !== 'null') {
-        return window.location.origin;
-      }
-      return 'http://127.0.0.1:8080';
-    }
-
     function collectReaders() {
       const blocks = Array.from(readersDiv.getElementsByClassName('reader'));
       return blocks.map(block => ({
@@ -90,7 +83,7 @@
       };
 
       try {
-        const res = await fetch(`${getBaseUrl()}/open`, {
+        const res = await fetch('/open', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -103,7 +96,7 @@
 
     async function closeCamera() {
       try {
-        const res = await fetch(`${getBaseUrl()}/close`, {
+        const res = await fetch('/close', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: '{}'
