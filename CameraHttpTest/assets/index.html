@@ -15,10 +15,6 @@
 <body>
   <h2>Camera HTTP 控制台</h2>
   <div class="row">
-    <label>服务地址：</label>
-    <input id="host" value="http://127.0.0.1:8080" style="width: 240px;" />
-  </div>
-  <div class="row">
     <label>摄像头 ID：</label>
     <input id="cameraId" type="number" value="0" />
   </div>
@@ -70,6 +66,14 @@
       }
     }
 
+
+    function getBaseUrl() {
+      if (window.location.origin && window.location.origin !== 'null') {
+        return window.location.origin;
+      }
+      return 'http://127.0.0.1:8080';
+    }
+
     function collectReaders() {
       const blocks = Array.from(readersDiv.getElementsByClassName('reader'));
       return blocks.map(block => ({
@@ -80,14 +84,13 @@
     }
 
     async function openCamera() {
-      const host = document.getElementById('host').value.trim();
       const payload = {
         cameraId: String(document.getElementById('cameraId').value),
         readers: collectReaders()
       };
 
       try {
-        const res = await fetch(`${host}/open`, {
+        const res = await fetch(`${getBaseUrl()}/open`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -99,9 +102,8 @@
     }
 
     async function closeCamera() {
-      const host = document.getElementById('host').value.trim();
       try {
-        const res = await fetch(`${host}/close`, {
+        const res = await fetch(`${getBaseUrl()}/close`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: '{}'

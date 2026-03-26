@@ -11,7 +11,7 @@
   - `POST /close`：关闭摄像头。
 - `ImageReader` 只用于测试：在 `onImageAvailable` 中仅 `acquireLatestImage()` 后立即 `close()`，不输出图像。
 - Activity 上实时显示帧间隔（毫秒）。
-- `assets/index.html` 提供前端页面，用于输入 cameraId、动态增减 `ImageReader` 参数并发送打开/关闭请求。
+- `assets/index.html` 提供前端页面，用于输入 cameraId、动态增减 `ImageReader` 参数并发送打开/关闭请求（默认直接使用当前站点地址）。
 
 ## 请求示例
 
