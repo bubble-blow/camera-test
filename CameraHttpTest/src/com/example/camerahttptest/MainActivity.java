@@ -15,6 +15,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
+import android.util.Range;
 import android.util.Size;
 import android.view.Surface;
 import android.widget.TextView;
@@ -280,7 +281,7 @@ public class MainActivity extends Activity {
                         try {
                             image = imageReader.acquireLatestImage();
                             if (image != null) {
-                                onFrameArrived();
+                                onFrameArrived(image.getTimestamp());
                             }
                         } finally {
                             if (image != null) {
@@ -292,6 +293,8 @@ public class MainActivity extends Activity {
                 imageReaders.add(reader);
                 surfaces.add(reader.getSurface());
             }
+
+            final int minExposureCompensation = getMinExposureCompensation(cameraId);
 
             cameraManager.openCamera(cameraId, new CameraDevice.StateCallback() {
                 @Override
@@ -306,6 +309,7 @@ public class MainActivity extends Activity {
                                         captureSession = session;
                                         try {
                                             CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+                                            builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, minExposureCompensation);
                                             for (ImageReader reader : imageReaders) {
                                                 builder.addTarget(reader.getSurface());
                                             }
@@ -390,11 +394,14 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void onFrameArrived() {
-        long now = System.currentTimeMillis();
+    private void onFrameArrived(long imageTimestampNs) {
         final String text;
         if (lastFrameTimestampMs > 0) {
-            long diff = now - lastFrameTimestampMs;
+            long nowMs = imageTimestampNs / 1000000L;
+            long diff = nowMs - lastFrameTimestampMs;
+            if (diff < 0) {
+                diff = 0;
+            }
             recentFrameIntervalsMs.addLast(diff);
             while (recentFrameIntervalsMs.size() > FRAME_WINDOW_SIZE) {
                 recentFrameIntervalsMs.removeFirst();
@@ -414,7 +421,7 @@ public class MainActivity extends Activity {
         } else {
             text = "Frame interval: collecting..., Avg FPS(10): collecting...";
         }
-        lastFrameTimestampMs = now;
+        lastFrameTimestampMs = imageTimestampNs / 1000000L;
 
         runOnUiThread(new Runnable() {
             @Override
@@ -422,6 +429,19 @@ public class MainActivity extends Activity {
                 frameIntervalText.setText(text);
             }
         });
+    }
+
+    private int getMinExposureCompensation(String cameraId) {
+        try {
+            CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraId);
+            Range<Integer> range = characteristics.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE);
+            if (range != null) {
+                return range.getLower();
+            }
+        } catch (Exception e) {
+            showCameraErrorMessage("Failed to query AE compensation range: " + e.getMessage());
+        }
+        return 0;
     }
 
     private static void putError(JSONObject obj, String msg) {
