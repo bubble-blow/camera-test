@@ -67,6 +67,8 @@ public class MainActivity extends Activity {
 
     private TextView serverStatusText;
     private TextView frameIntervalText;
+    private TextView fpsText;
+    private TextView resolutionText;
     private TextView errorText;
 
     private volatile boolean serverRunning;
@@ -93,6 +95,8 @@ public class MainActivity extends Activity {
 
         serverStatusText = (TextView) findViewById(R.id.serverStatus);
         frameIntervalText = (TextView) findViewById(R.id.frameIntervalText);
+        fpsText = (TextView) findViewById(R.id.fpsText);
+        resolutionText = (TextView) findViewById(R.id.resolutionText);
         errorText = (TextView) findViewById(R.id.errorText);
         cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
 
@@ -283,7 +287,7 @@ public class MainActivity extends Activity {
                         try {
                             image = imageReader.acquireLatestImage();
                             if (image != null) {
-                                onFrameArrived(image.getTimestamp());
+                                onFrameArrived(image.getTimestamp(), image.getWidth(), image.getHeight());
                             }
                         } finally {
                             if (image != null) {
@@ -391,13 +395,18 @@ public class MainActivity extends Activity {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                frameIntervalText.setText("Frame interval: N/A, Avg FPS(10): N/A");
+                frameIntervalText.setText("Frame interval: N/A");
+                fpsText.setText("Avg FPS(10): N/A");
+                resolutionText.setText("Image size: N/A");
             }
         });
     }
 
-    private void onFrameArrived(long imageTimestampNs) {
-        final String text;
+    private void onFrameArrived(long imageTimestampNs, int width, int height) {
+        final String intervalText;
+        final String fpsLineText;
+        final String sizeText = "Image size: " + width + "x" + height;
+
         if (lastFrameTimestampMs > 0) {
             long nowMs = imageTimestampNs / 1000000L;
             long diff = nowMs - lastFrameTimestampMs;
@@ -416,19 +425,20 @@ public class MainActivity extends Activity {
             double avgIntervalMs = sum / recentFrameIntervalsMs.size();
             double avgFps = avgIntervalMs > 0 ? (1000.0 / avgIntervalMs) : 0;
 
-            text = String.format(Locale.US,
-                    "Frame interval: %d ms, Avg FPS(10): %.2f",
-                    diff,
-                    avgFps);
+            intervalText = "Frame interval: " + diff + " ms";
+            fpsLineText = String.format(Locale.US, "Avg FPS(10): %.2f", avgFps);
         } else {
-            text = "Frame interval: collecting..., Avg FPS(10): collecting...";
+            intervalText = "Frame interval: collecting...";
+            fpsLineText = "Avg FPS(10): collecting...";
         }
         lastFrameTimestampMs = imageTimestampNs / 1000000L;
 
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                frameIntervalText.setText(text);
+                frameIntervalText.setText(intervalText);
+                fpsText.setText(fpsLineText);
+                resolutionText.setText(sizeText);
             }
         });
     }
