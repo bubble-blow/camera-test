@@ -83,6 +83,8 @@ public class MainActivity extends Activity {
     private long lastFrameTimestampMs = -1L;
     private final Deque<Long> recentFrameIntervalsMs = new ArrayDeque<Long>();
     private static final int FRAME_WINDOW_SIZE = 10;
+    private static final double MIN_HW_RATIO = 0.73;
+    private static final double MAX_HW_RATIO = 0.77;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -527,10 +529,12 @@ public class MainActivity extends Activity {
                         Size[] sizes = map.getOutputSizes(format);
                         if (sizes != null) {
                             for (Size size : sizes) {
-                                JSONObject sizeObj = new JSONObject();
-                                sizeObj.put("width", size.getWidth());
-                                sizeObj.put("height", size.getHeight());
-                                sizesArray.put(sizeObj);
+                                if (isInHeightWidthRatioRange(size.getWidth(), size.getHeight())) {
+                                    JSONObject sizeObj = new JSONObject();
+                                    sizeObj.put("width", size.getWidth());
+                                    sizeObj.put("height", size.getHeight());
+                                    sizesArray.put(sizeObj);
+                                }
                             }
                         }
 
@@ -550,6 +554,14 @@ public class MainActivity extends Activity {
         }
 
         return result;
+    }
+
+    private static boolean isInHeightWidthRatioRange(int width, int height) {
+        if (width <= 0 || height <= 0) {
+            return false;
+        }
+        double ratio = (double) height / (double) width;
+        return ratio >= MIN_HW_RATIO && ratio <= MAX_HW_RATIO;
     }
 
     public static String imageFormatToName(int format) {
