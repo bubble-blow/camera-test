@@ -82,8 +82,8 @@ public class MainActivity extends Activity {
     private CameraDevice cameraDevice;
     private CameraCaptureSession captureSession;
     private final List<ImageReader> imageReaders = new ArrayList<ImageReader>();
-    private long lastFrameTimestampMs = -1L;
-    private final Deque<Long> recentFrameIntervalsMs = new ArrayDeque<Long>();
+    private long lastFrameTimestampNs = -1L;
+    private final Deque<Long> recentFrameIntervalsNs = new ArrayDeque<Long>();
     private static final int FRAME_WINDOW_SIZE = 10;
     private static final double MIN_HW_RATIO = 0.73;
     private static final double MAX_HW_RATIO = 0.77;
@@ -390,8 +390,8 @@ public class MainActivity extends Activity {
             reader.close();
         }
         imageReaders.clear();
-        lastFrameTimestampMs = -1L;
-        recentFrameIntervalsMs.clear();
+        lastFrameTimestampNs = -1L;
+        recentFrameIntervalsNs.clear();
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -407,31 +407,31 @@ public class MainActivity extends Activity {
         final String fpsLineText;
         final String sizeText = "Image size: " + width + "x" + height;
 
-        if (lastFrameTimestampMs > 0) {
-            long nowMs = imageTimestampNs / 1000000L;
-            long diff = nowMs - lastFrameTimestampMs;
-            if (diff < 0) {
-                diff = 0;
+        if (lastFrameTimestampNs > 0) {
+            long diffNs = imageTimestampNs - lastFrameTimestampNs;
+            if (diffNs < 0) {
+                diffNs = 0;
             }
-            recentFrameIntervalsMs.addLast(diff);
-            while (recentFrameIntervalsMs.size() > FRAME_WINDOW_SIZE) {
-                recentFrameIntervalsMs.removeFirst();
+            recentFrameIntervalsNs.addLast(diffNs);
+            while (recentFrameIntervalsNs.size() > FRAME_WINDOW_SIZE) {
+                recentFrameIntervalsNs.removeFirst();
             }
 
-            double sum = 0;
-            for (Long intervalMs : recentFrameIntervalsMs) {
-                sum += intervalMs;
+            double sumNs = 0;
+            for (Long intervalNs : recentFrameIntervalsNs) {
+                sumNs += intervalNs;
             }
-            double avgIntervalMs = sum / recentFrameIntervalsMs.size();
-            double avgFps = avgIntervalMs > 0 ? (1000.0 / avgIntervalMs) : 0;
+            double avgIntervalNs = sumNs / recentFrameIntervalsNs.size();
+            double avgFps = avgIntervalNs > 0 ? (1000000000.0 / avgIntervalNs) : 0;
+            double diffMs = diffNs / 1000000.0;
 
-            intervalText = "Frame interval: " + diff + " ms";
+            intervalText = String.format(Locale.US, "Frame interval: %.3f ms", diffMs);
             fpsLineText = String.format(Locale.US, "Avg FPS(10): %.2f", avgFps);
         } else {
             intervalText = "Frame interval: collecting...";
             fpsLineText = "Avg FPS(10): collecting...";
         }
-        lastFrameTimestampMs = imageTimestampNs / 1000000L;
+        lastFrameTimestampNs = imageTimestampNs;
 
         runOnUiThread(new Runnable() {
             @Override
