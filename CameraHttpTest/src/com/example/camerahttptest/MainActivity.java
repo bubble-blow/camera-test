@@ -69,6 +69,7 @@ public class MainActivity extends Activity {
     private TextView frameIntervalText;
     private TextView fpsText;
     private TextView resolutionText;
+    private FrameIntervalHistogramView histogramView;
     private TextView errorText;
 
     private volatile boolean serverRunning;
@@ -97,6 +98,7 @@ public class MainActivity extends Activity {
         frameIntervalText = (TextView) findViewById(R.id.frameIntervalText);
         fpsText = (TextView) findViewById(R.id.fpsText);
         resolutionText = (TextView) findViewById(R.id.resolutionText);
+        histogramView = (FrameIntervalHistogramView) findViewById(R.id.histogramView);
         errorText = (TextView) findViewById(R.id.errorText);
         cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
 
@@ -275,6 +277,7 @@ public class MainActivity extends Activity {
         JSONObject result = new JSONObject();
         try {
             clearCameraErrorMessage();
+            clearHistogramData();
             closeCamera();
 
             final List<Surface> surfaces = new ArrayList<Surface>();
@@ -398,6 +401,9 @@ public class MainActivity extends Activity {
                 frameIntervalText.setText("Frame interval: N/A");
                 fpsText.setText("Avg FPS(10): N/A");
                 resolutionText.setText("Image size: N/A");
+                if (histogramView != null) {
+                    histogramView.clearData();
+                }
             }
         });
     }
@@ -427,6 +433,7 @@ public class MainActivity extends Activity {
 
             intervalText = String.format(Locale.US, "Frame interval: %.3f ms", diffMs);
             fpsLineText = String.format(Locale.US, "Avg FPS(10): %.2f", avgFps);
+            addHistogramSample(diffMs);
         } else {
             intervalText = "Frame interval: collecting...";
             fpsLineText = "Avg FPS(10): collecting...";
@@ -439,6 +446,29 @@ public class MainActivity extends Activity {
                 frameIntervalText.setText(intervalText);
                 fpsText.setText(fpsLineText);
                 resolutionText.setText(sizeText);
+            }
+        });
+    }
+
+    private void addHistogramSample(double intervalMs) {
+        final int bucketMs = (int) Math.round(intervalMs);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (histogramView != null) {
+                    histogramView.addIntervalMs(bucketMs);
+                }
+            }
+        });
+    }
+
+    private void clearHistogramData() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (histogramView != null) {
+                    histogramView.clearData();
+                }
             }
         });
     }
