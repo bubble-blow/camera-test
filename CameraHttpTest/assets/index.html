@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Camera HTTP 控制台</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; }
+    .row { margin-bottom: 12px; }
+    .reader { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
+    input, select, button { padding: 6px; margin-right: 8px; }
+    .log { background: #f6f6f6; padding: 10px; min-height: 80px; white-space: pre-wrap; }
+    .caps { background: #f0f7ff; padding: 10px; min-height: 120px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2>Camera HTTP 控制台</h2>
+  <div class="row">
+    <label>摄像头 ID：</label>
+    <input id="cameraId" type="number" value="0" />
+  </div>
+
+  <div class="row">
+    <button onclick="addReader()">增加 ImageReader</button>
+    <button onclick="removeReader()">减少 ImageReader</button>
+  </div>
+
+  <div id="readers"></div>
+
+  <div class="row">
+    <button onclick="openCamera()">打开</button>
+    <button onclick="closeCamera()">关闭</button>
+  </div>
+
+
+  <h3>相机能力列表</h3>
+  <div class="row">
+    <button onclick="loadCapabilities()">刷新能力</button>
+  </div>
+  <div class="caps" id="caps">加载中...</div>
+
+  <h3>响应日志</h3>
+  <div class="log" id="log"></div>
+
+  <script>
+    const readersDiv = document.getElementById('readers');
+
+    function appendLog(text) {
+      const log = document.getElementById('log');
+      const now = new Date().toLocaleTimeString();
+      log.textContent = `[${now}] ${text}\n` + log.textContent;
+    }
+
+    function addReader(defaults = { width: 640, height: 480, format: 'YUV_420_888' }) {
+      const idx = readersDiv.children.length + 1;
+      const block = document.createElement('div');
+      block.className = 'reader';
+      block.innerHTML = `
+        <div><strong>Reader #${idx}</strong></div>
+        <label>宽:</label><input type="number" class="width" value="${defaults.width}" />
+        <label>高:</label><input type="number" class="height" value="${defaults.height}" />
+        <label>格式:</label>
+        <select class="format">
+          <option value="YV12" ${defaults.format === 'YV12' ? 'selected' : ''}>YV12</option>
+          <option value="YUV_420_888" ${defaults.format === 'YUV_420_888' ? 'selected' : ''}>YUV_420_888</option>
+          <option value="NV21" ${defaults.format === 'NV21' ? 'selected' : ''}>NV21</option>
+          <option value="NV16" ${defaults.format === 'NV16' ? 'selected' : ''}>NV16</option>
+          <option value="JPEG" ${defaults.format === 'JPEG' ? 'selected' : ''}>JPEG</option>
+          <option value="YUY2" ${defaults.format === 'YUY2' ? 'selected' : ''}>YUY2</option>
+          <option value="Y8" ${defaults.format === 'Y8' ? 'selected' : ''}>Y8</option>
+          <option value="RAW_SENSOR" ${defaults.format === 'RAW_SENSOR' ? 'selected' : ''}>RAW_SENSOR</option>
+          <option value="RAW_PRIVATE" ${defaults.format === 'RAW_PRIVATE' ? 'selected' : ''}>RAW_PRIVATE</option>
+          <option value="RAW10" ${defaults.format === 'RAW10' ? 'selected' : ''}>RAW10</option>
+          <option value="DEPTH16" ${defaults.format === 'DEPTH16' ? 'selected' : ''}>DEPTH16</option>
+          <option value="DEPTH_POINT_CLOUD" ${defaults.format === 'DEPTH_POINT_CLOUD' ? 'selected' : ''}>DEPTH_POINT_CLOUD</option>
+          <option value="DEPTH_JPEG" ${defaults.format === 'DEPTH_JPEG' ? 'selected' : ''}>DEPTH_JPEG</option>
+          <option value="PRIVATE" ${defaults.format === 'PRIVATE' ? 'selected' : ''}>PRIVATE</option>
+          <option value="HEIC" ${defaults.format === 'HEIC' ? 'selected' : ''}>HEIC</option>
+        </select>
+      `;
+      readersDiv.appendChild(block);
+    }
+
+    function removeReader() {
+      if (readersDiv.lastElementChild) {
+        readersDiv.removeChild(readersDiv.lastElementChild);
+      }
+    }
+
+
+    function collectReaders() {
+      const blocks = Array.from(readersDiv.getElementsByClassName('reader'));
+      return blocks.map(block => ({
+        width: Number(block.querySelector('.width').value),
+        height: Number(block.querySelector('.height').value),
+        format: block.querySelector('.format').value
+      }));
+    }
+
+
+    async function loadCapabilities() {
+      const caps = document.getElementById('caps');
+      try {
+        const res = await fetch('/capabilities');
+        const data = await res.json();
+        if (!data.ok) {
+          caps.textContent = '获取失败: ' + (data.message || 'unknown');
+          return;
+        }
+
+        const lines = [];
+        (data.cameras || []).forEach(camera => {
+          lines.push(`Camera ${camera.cameraId}`);
+          (camera.streams || []).forEach(stream => {
+            const sizes = (stream.sizes || []).map(s => `${s.width}x${s.height}`).join(', ');
+            lines.push(`  - ${stream.formatName} (${stream.format}): ${sizes}`);
+          });
+          lines.push('');
+        });
+
+        caps.textContent = lines.length ? lines.join('\n') : '无数据';
+      } catch (e) {
+        caps.textContent = '请求失败: ' + e.message;
+      }
+    }
+
+    async function openCamera() {
+      const payload = {
+        cameraId: String(document.getElementById('cameraId').value),
+        readers: collectReaders()
+      };
+
+      try {
+        const res = await fetch('/open', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        appendLog('/open => ' + await res.text());
+      } catch (e) {
+        appendLog('/open 请求失败: ' + e.message);
+      }
+    }
+
+    async function closeCamera() {
+      try {
+        const res = await fetch('/close', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        appendLog('/close => ' + await res.text());
+      } catch (e) {
+        appendLog('/close 请求失败: ' + e.message);
+      }
+    }
+
+    addReader();
+    loadCapabilities();
+  </script>
+</body>
+</html>
